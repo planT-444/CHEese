@@ -27,7 +27,7 @@ class Board:
         self.castle = {'w': True, 'b': False}
         for i in range(8):
             for j in range(8):
-                cur_id = starting_position[i][j]
+                cur_id = test_position[i][j]
                 # cur_id = test_position[i][j]
                 self.grid[i][j] = Piece.create_piece(cur_id, i, j, self)
     
@@ -76,6 +76,11 @@ class Piece:
             color = None
         piece_type = id_to_type[id.lower()]
         return piece_type(id, color, row, col, board)
+
+class Move:
+    def __init__(self, piece_updates: list[list[tuple[Piece, int, int]]], check_legal = None):
+        check_legal = check_legal or piece_updates
+
 
 class King(Piece):
     def is_incheck(self):
@@ -169,9 +174,6 @@ class King(Piece):
                     
                     # castling is legal, add to moves
 
-        
-# class Move():
-#     def __init__(self, )
 
 class Queen(Piece):
     pass
