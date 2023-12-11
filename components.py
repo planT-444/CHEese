@@ -245,12 +245,12 @@ class King(Piece):
 
     def generate_moves(self):
         move_list = []
-        king_moves = ((1,0),(-1,0),(0,1),(0,-1),(1,1),(1,-1),(-1,1),(-1,-1))
-        new_board = self.board.copy()
         
+        new_board = self.board.copy()
         # replace with empty square
         new_board.grid[self.row][self.col] = Piece.create_piece('_', self.row, self.col, new_board)
-
+        
+        king_moves = ((1,0),(-1,0),(0,1),(0,-1),(1,1),(1,-1),(-1,1),(-1,-1))
         # check surrounding squares
         for row_move, col_move in king_moves:
             new_row = self.row + row_move
@@ -283,19 +283,119 @@ class King(Piece):
                     move_king = Piece.create_piece(self.id, self.row, col, new_board)
                     move_board = new_board.copy()
                     move_list.append(Move(move_board, move_king, (self.row, move_col), side))
+        return move_list
 
 
 class Queen(Piece):
-    pass
+    def generate_moves(self):
+        move_list = []
+        new_board = self.board.copy()
+        new_board.grid[self.row][self.col] = Piece.create_piece('_', self.row, self.col, new_board)
+
+        friends = 'kqrbnp' if self.color == 'b' else 'KQRBNP'
+        enemies = 'kqrbnp' if self.color == 'w' else 'KQRBNP'
+        queen_moves = ((1,0),(-1,0),(0,1),(0,-1),(1,1),(1,-1),(-1,1),(-1,-1))
+        for row_move, col_move in queen_moves:
+            cur_row = self.row
+            cur_col = self.col
+            while True:
+                cur_row += row_move
+                cur_col += col_move
+                if not Piece.is_inbounds(cur_row, cur_col):
+                    break
+                cur_square = new_board.grid[cur_row][cur_col]
+                if cur_square.id in friends:
+                    break
+
+                move_board = new_board.copy()
+                move_queen = Piece.create_piece(self.id, cur_row, cur_col, move_board)
+                move_list.append(Move(move_board, move_queen, (cur_row, cur_col)))
+
+                if cur_square.id in enemies:
+                    break
+                
+
+
 
 class Rook(Piece):
-    pass
+    def generate_moves(self):
+        move_list = []
+        new_board = self.board.copy()
+        new_board.grid[self.row][self.col] = Piece.create_piece('_', self.row, self.col, new_board)
+
+        friends = 'kqrbnp' if self.color == 'b' else 'KQRBNP'
+        enemies = 'kqrbnp' if self.color == 'w' else 'KQRBNP'
+        rook_moves = ((1,0),(-1,0),(0,1),(0,-1))
+        for row_move, col_move in rook_moves:
+            cur_row = self.row
+            cur_col = self.col
+            while True:
+                cur_row += row_move
+                cur_col += col_move
+                if not Piece.is_inbounds(cur_row, cur_col):
+                    break
+                cur_square = new_board.grid[cur_row][cur_col]
+                if cur_square.id in friends:
+                    break
+
+                move_board = new_board.copy()
+                move_rook = Piece.create_piece(self.id, cur_row, cur_col, move_board)
+                move_list.append(Move(move_board, move_rook, (cur_row, cur_col)))
+                
+                if cur_square.id in enemies:
+                    break
 
 class Bishop(Piece):
-    pass
+    def generate_moves(self):
+        move_list = []
+        new_board = self.board.copy()
+        new_board.grid[self.row][self.col] = Piece.create_piece('_', self.row, self.col, new_board)
+
+        friends = 'kqrbnp' if self.color == 'b' else 'KQRBNP'
+        enemies = 'kqrbnp' if self.color == 'w' else 'KQRBNP'
+        bishop_moves = ((1,1),(-1,-1),(-1,1),(1,-1))
+        for row_move, col_move in bishop_moves:
+            cur_row = self.row
+            cur_col = self.col
+            while True:
+                cur_row += row_move
+                cur_col += col_move
+                if not Piece.is_inbounds(cur_row, cur_col):
+                    break
+                cur_square = new_board.grid[cur_row][cur_col]
+                if cur_square.id in friends:
+                    break
+
+                move_board = new_board.copy()
+                move_bishop = Piece.create_piece(self.id, cur_row, cur_col, move_board)
+                move_list.append(Move(move_board, move_bishop, (cur_row, cur_col)))
+                
+                if cur_square.id in enemies:
+                    break
 
 class Knight(Piece):
-    pass
+    def generate_moves(self):
+        move_list = []
+        new_board = self.board.copy()
+        new_board.grid[self.row][self.col] = Piece.create_piece('_', self.row, self.col, new_board)
+
+        friends = 'kqrbnp' if self.color == 'b' else 'KQRBNP'
+        enemies = 'kqrbnp' if self.color == 'w' else 'KQRBNP'
+        knight_moves = ((2,1),(2,-1),(-2,1),(-2,-1),(1,2),(1,-2),(-1,2),(-1,-2))
+        for row_move, col_move in knight_moves:
+            new_row = self.row + row_move
+            new_col = self.col + col_move
+
+            if not Piece.is_inbounds(new_row, new_col):
+                continue
+            cur_square = new_board.grid[new_row][new_col]
+            if cur_square.id in friends:
+                continue
+
+            move_board = new_board.copy()
+            move_knight = Piece.create_piece(self.id, new_row, new_col, move_board)
+            move_list.append(Move(move_board, move_knight, (new_col, new_col)))
+
 
 class Pawn(Piece):
     pass
