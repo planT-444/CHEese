@@ -83,7 +83,7 @@ class Move:
         self.board = board
         self.piece = piece
         self.piece_update = piece_update
-        # choices for special: enpassant, castle, promotion (format =[id])
+        # choices for special: e.p., castle (O-O, O-O-O), promotion (format =[id])
         self.special = special
         
 
@@ -111,16 +111,20 @@ class Move:
                 board_grid[captured_row][new_col] = Piece.create_piece('_', captured_row, new_col, self.board)
                 move_id = f'{Board.coords(0, old_col)[1]}x{Board.coords(new_row, new_col)} e.p.'
 
-            elif self.special == 'castle':
+            elif self.special[0] == 'O':
                 # queenside else kingside
-                old_rook_col, new_rook_col, move_id = (0, 3, 'O-O-O') if new_col == 2 else (7, 5, 'O-O') 
+                old_rook_col, new_rook_col = (0, 3) if self.special == 'O-O-O' else (7, 5) 
                 board_grid[new_row][old_rook_col] = Piece.create_piece('_', new_row, old_rook_col, self.board)
                 new_rook_id = 'R' if self.piece.color == 'w' else 'r'
                 board_grid[new_row][new_rook_col] = Piece.create_piece(new_rook_id, new_row, new_rook_col, self.board)
+                move_id = self.special
+
+                return True, self.board, move_id
+            
             else: # promotion
                 move_id = f'{Board.coords(new_row, new_col)}={self.piece.id.upper()}'
             
-            return True, self.board, move_id
+            
 
 
         king = None
@@ -134,7 +138,9 @@ class Move:
                 break
         if king.is_incheck():
             return False, None, None
-
+        
+        if self.special is not None: # gotta check if specials are legal
+            return True, self.board, move_id
 
         old_coords = Board.coords(old_row, old_col)
         new_coords = Board.coords(new_row, new_col)
@@ -159,6 +165,8 @@ class Move:
                     cur_row, cur_col = new_row, new_col
                     for row_move, col_move in search_moves[piece_ids]:
                         while True:
+                            cur_row += row_move
+                            cur_col += col_move
                             if not Piece.is_inbounds:
                                 break
                             cur_square = board_grid_copy[cur_row][cur_col]
@@ -166,7 +174,7 @@ class Move:
                                 look_alike_rows.append(cur_row)
                                 look_alike_cols.append(cur_col)
                                 break
-                            if cur_square.id != '_':
+                            if cur_square.id != '_' or piece_ids == 'n':
                                 break
                 
                 row_match = old_row in look_alike_rows
@@ -182,14 +190,7 @@ class Move:
                 
                 move_id += capture + new_coords
                 
-
-
-                
         return True, self.board, move_id
-
-
-
-
 
 
 
@@ -214,9 +215,11 @@ class King(Piece):
             if stranger_danger in ('qr', 'qb', 'n'):
                 # loop to search in different directions
                 for row_move, col_move in search_moves[stranger_danger]:
-                    cur_row, cur_col = self.row + row_move, self.col + col_move
+                    cur_row, cur_col = self.row, self.col
                 
                     while True:
+                        cur_row += row_move
+                        cur_col += col_move
                         if not Piece.is_inbounds(cur_row, cur_col):
                             break
                         cur_square = board_grid[cur_row][cur_col]
@@ -226,8 +229,7 @@ class King(Piece):
                             return True
                         if stranger_danger == 'n':
                             break
-                        cur_row += row_move
-                        cur_col += col_move
+                        
             elif stranger_danger == 'p':
                 # direction of search depends on color
                 if self.color == 'w':
@@ -242,6 +244,7 @@ class King(Piece):
     
 
     def generate_moves(self):
+        move_list = []
         king_moves = ((1,0),(-1,0),(0,1),(0,-1),(1,1),(1,-1),(-1,1),(-1,-1))
         new_board = self.board.copy()
         
@@ -254,22 +257,19 @@ class King(Piece):
             new_col = self.col + col_move
             if not (0 <= new_row < 8 and 0 <= new_col < 8):
                 continue
-
-            print(f"checking if {self.id} ({Board.coords(self.row, self.col)}) can move to {Board.coords(new_row, new_col)}")
-
-            new_king = Piece.create_piece(self.id, new_row, new_col, new_board)
+            
+            move_board = new_board.copy()
+            move_king = Piece.create_piece(self.id, new_row, new_col, move_board)
             # not necessary to add new_king to new_board
             # is_incheck() works fine, saves having to remove it after
-            if not new_king.is_incheck():
-                print(f"legal move to {Board.coords(new_row, new_col)}")
-                # move is legal, add to moves
+            move_list.append(Move(move_board, move_king, (new_row, new_col)))
         
         # castling
         if not self.is_incheck() and self.board.castle[self.color]:
             print("CHECKING CASTLING")
             sides = {
-                'kingside': {'range': range(5,7), 'can_castle': True},
-                'queenside': {'range': range(2,4), 'can_castle': True}
+                'O-O': {'range': range(5,7), 'can_castle': True},
+                'O-O-O': {'range': range(2,4), 'can_castle': True}
             }
             for side in sides:
                 properties = sides[side]
@@ -277,13 +277,12 @@ class King(Piece):
                     new_king = Piece.create_piece(self.id, self.row, col, new_board)
                     if new_board.grid[self.row][col].id != '_' or new_king.is_incheck():
                         properties['can_castle'] = False
-                        if new_king.is_incheck():
-                            print(f"IN CHECK AT {Board.coords(self.row, col)}")
                         break
                 if properties['can_castle']:
-                    print(f"{side} castling is legal")
-                    
-                    # castling is legal, add to moves
+                    move_col = 2 if side == 'O-O-O' else 6
+                    move_king = Piece.create_piece(self.id, self.row, col, new_board)
+                    move_board = new_board.copy()
+                    move_list.append(Move(move_board, move_king, (self.row, move_col), side))
 
 
 class Queen(Piece):
