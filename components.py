@@ -30,6 +30,7 @@ class Board:
                 cur_id = test_position[i][j]
                 # cur_id = test_position[i][j]
                 self.grid[i][j] = Piece.create_piece(cur_id, i, j, self)
+        self.moves = []
     
     @staticmethod
     def coords(row, col):
@@ -79,9 +80,9 @@ class Piece:
         return piece_type(id, color, row, col, board)
 
 class Move:
-    def __init__(self, board, piece, piece_update:tuple[int, int, int, int], special = None):
-        self.board = board
-        self.piece = piece
+    def __init__(self, board, piece_id, piece_update:tuple[int, int, int, int], special = None):
+        self.board = board.copy()
+        self.piece = Piece.create_piece(piece_id, None, None, self.board)
         self.piece_update = piece_update
         # choices for special: e.p., castle (O-O, O-O-O), promotion (format =[id])
         self.special = special
@@ -257,12 +258,7 @@ class King(Piece):
             new_col = self.col + col_move
             if not (0 <= new_row < 8 and 0 <= new_col < 8):
                 continue
-            
-            move_board = new_board.copy()
-            move_king = Piece.create_piece(self.id, new_row, new_col, move_board)
-            # not necessary to add new_king to new_board
-            # is_incheck() works fine, saves having to remove it after
-            move_list.append(Move(move_board, move_king, (new_row, new_col)))
+            move_list.append(Move(new_board, self.id, (self.row, self.col, new_row, new_col)))
         
         # castling
         if not self.is_incheck() and self.board.castle[self.color]:
@@ -280,9 +276,7 @@ class King(Piece):
                         break
                 if properties['can_castle']:
                     move_col = 2 if side == 'O-O-O' else 6
-                    move_king = Piece.create_piece(self.id, self.row, col, new_board)
-                    move_board = new_board.copy()
-                    move_list.append(Move(move_board, move_king, (self.row, move_col), side))
+                    move_list.append(Move(new_board, self.id, (self.row, self.col, self.row, move_col), side))
         return move_list
 
 
@@ -307,9 +301,7 @@ class Queen(Piece):
                 if cur_square.id in friends:
                     break
 
-                move_board = new_board.copy()
-                move_queen = Piece.create_piece(self.id, cur_row, cur_col, move_board)
-                move_list.append(Move(move_board, move_queen, (cur_row, cur_col)))
+                move_list.append(Move(new_board, self.id, (self.row, self.col, cur_row, cur_col)))
 
                 if cur_square.id in enemies:
                     break
@@ -338,9 +330,7 @@ class Rook(Piece):
                 if cur_square.id in friends:
                     break
 
-                move_board = new_board.copy()
-                move_rook = Piece.create_piece(self.id, cur_row, cur_col, move_board)
-                move_list.append(Move(move_board, move_rook, (cur_row, cur_col)))
+                move_list.append(Move(new_board, self.id, (self.row, self.col, cur_row, cur_col)))
                 
                 if cur_square.id in enemies:
                     break
@@ -366,9 +356,7 @@ class Bishop(Piece):
                 if cur_square.id in friends:
                     break
 
-                move_board = new_board.copy()
-                move_bishop = Piece.create_piece(self.id, cur_row, cur_col, move_board)
-                move_list.append(Move(move_board, move_bishop, (cur_row, cur_col)))
+                move_list.append(Move(new_board, self.id, (self.row, self.col, cur_row, cur_col)))
                 
                 if cur_square.id in enemies:
                     break
@@ -392,13 +380,41 @@ class Knight(Piece):
             if cur_square.id in friends:
                 continue
 
-            move_board = new_board.copy()
-            move_knight = Piece.create_piece(self.id, new_row, new_col, move_board)
-            move_list.append(Move(move_board, move_knight, (new_col, new_col)))
+            move_list.append(Move(new_board, self.id, (self.row, self.col, new_col, new_col)))
 
 
 class Pawn(Piece):
-    pass
+    def generate_moves(self):
+        move_list = []
+        new_board = self.board.copy()
+        board_grid = new_board.grid
+        board_grid[self.row][self.col] = Piece.create_piece('_', self.row, self.col, new_board)
+
+        friends = 'kqrbnp' if self.color == 'b' else 'KQRBNP'
+        enemies = 'kqrbnp' if self.color == 'w' else 'KQRBNP'
+
+        row_move_direction = 1 if self.color == 'b' else -1
+        starting_row = 1 if self.color == 'b' else 6
+        promotion_row = 0 if self.color == 'w' else 7
+        enpassant_row = 3 if self.color == 'w' else 4
+
+        push_row = self.row + row_move_direction
+        if board_grid[push_row][self.col].id == '_':
+            if push_row == promotion_row:
+                for promo_code in ('qrbn' if self.color == 'b' else 'QRBN'):
+                    move_list.append(Move(new_board, self.id, (self.row, self.col, push_row, self.col), '='+promo_code))
+            else:
+                move_list.append(Move(new_board, self.id, (self.row, self.col, push_row, self.col), '='+promo_code))
+        for col_move in (1, -1):
+            new_col = self.col + col_move
+            if Piece.is_inbounds(push_row, new_col):
+                if board_grid[push_row][new_col].id in enemies:
+                    move_list.append(Move(new_board, self.id, (self.row, self.col, push_row, new_col)))
+                # code enpassant later
+                # if self.row == enpassant_row 
+            
+
+
 
 class EmptySquare(Piece):
     pass
