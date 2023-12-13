@@ -97,9 +97,10 @@ class Move:
         board_grid_copy = board_grid.copy()
         old_row, old_col, new_row, new_col = self.piece_update
 
-        # easy way out, changing the self.piece to the promoted one
+        # easy way out, changing self.piece (the pawn) to the promoted one
         if self.special is not None and self.special[0] == '=':
-            self.piece = Piece.create_piece(self.special[1:], new_row, new_col, self.board)
+            promo_id = self.special[1] if self.piece.color == 'w' else self.special[1].lower()
+            self.piece = Piece.create_piece(promo_id, new_row, new_col, self.board)
 
         board_grid[new_row][new_col] = self.piece
         self.piece.row = new_row
@@ -107,7 +108,7 @@ class Move:
 
 
         if self.special is not None:
-            if self.special == 'enpassant':
+            if self.special == 'e.p.':
                 captured_row = new_row + (1 if self.piece.color == 'w' else -1)
                 board_grid[captured_row][new_col] = Piece.create_piece('_', captured_row, new_col, self.board)
                 move_id = f'{Board.coords(0, old_col)[1]}x{Board.coords(new_row, new_col)} e.p.'
@@ -404,14 +405,18 @@ class Pawn(Piece):
                 for promo_code in ('qrbn' if self.color == 'b' else 'QRBN'):
                     move_list.append(Move(new_board, self.id, (self.row, self.col, push_row, self.col), '='+promo_code))
             else:
-                move_list.append(Move(new_board, self.id, (self.row, self.col, push_row, self.col), '='+promo_code))
+                move_list.append(Move(new_board, self.id, (self.row, self.col, push_row, self.col)))
+                dpush_row = self.row + 2 * row_move_direction
+                if self.row == starting_row and board_grid[dpush_row][self.col].id == '_':
+                    move_list.append(Move(new_board, self.id, (self.row, self.col, dpush_row, self.col)))
         for col_move in (1, -1):
             new_col = self.col + col_move
             if Piece.is_inbounds(push_row, new_col):
                 if board_grid[push_row][new_col].id in enemies:
                     move_list.append(Move(new_board, self.id, (self.row, self.col, push_row, new_col)))
                 # code enpassant later
-                # if self.row == enpassant_row 
+                # if self.row == enpassant_row
+        return move_list
             
 
 
